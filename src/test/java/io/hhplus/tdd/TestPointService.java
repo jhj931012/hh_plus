@@ -1,6 +1,23 @@
 package io.hhplus.tdd;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import io.hhplus.tdd.database.PointHistoryTable;
+import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.PointService;
+import io.hhplus.tdd.point.TransactionType;
+import io.hhplus.tdd.point.UserPoint;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /*
 * PATCH  `/point/{id}/charge` : 포인트를 충전한다.
@@ -21,6 +38,43 @@ import org.springframework.boot.test.context.SpringBootTest;
    - 포인트 충전 시에 결과값이 10_000_000 이상일 경우, 요청은 실패한다.
 */
 
-@SpringBootTest
 public class TestPointService {
+
+    @Mock
+    private UserPointTable userPointTable;
+
+    @Mock
+    private PointHistoryTable pointHistoryTable;
+
+    @InjectMocks
+    private PointService pointService;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+
+    @Test
+    @DisplayName("포인트 충전 성공케이스")
+    void testCharge_successful(){
+        // Given
+        long userId = 1L;
+        long amountToCharge = 500L;
+        UserPoint existingUserPoint = new UserPoint(userId, 1000L, System.currentTimeMillis()); // 현재 포인트: 1000
+
+        when(userPointTable.selectById(userId)).thenReturn(existingUserPoint);
+        when(userPointTable.insertOrUpdate(userId, 1500L))
+                .thenReturn(new UserPoint(userId, 1500L, System.currentTimeMillis())); // 업데이트된 포인트
+
+        // When
+        UserPoint updatedUserPoint = pointService.charge(userId, amountToCharge);
+
+        // Then
+        assertEquals(1500L, updatedUserPoint.point());
+        verify(userPointTable).selectById(userId);
+        verify(userPointTable).insertOrUpdate(userId, 1500L);
+        verify(pointHistoryTable).insert(eq(userId), eq(amountToCharge), eq(TransactionType.CHARGE), anyLong());
+    }
+
 }
