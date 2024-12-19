@@ -129,4 +129,60 @@ public class TestPointService {
         verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
     }
 
+    @Test
+    @DisplayName("포인트 사용 성공케이스")
+    void testUse_successful() {
+        // Given
+        long userId = 1L;
+        long initialPoints = 1000L;
+        long useAmount = 500L;
+        long currentTimeMillis = System.currentTimeMillis();
+
+        UserPoint initialUserPoint = new UserPoint(userId, initialPoints, currentTimeMillis);
+        UserPoint expectedUserPoint = new UserPoint(userId, initialPoints - useAmount, currentTimeMillis);
+
+        when(userPointTable.selectById(userId)).thenReturn(initialUserPoint);
+        when(userPointTable.insertOrUpdate(userId, initialPoints - useAmount))
+                .thenReturn(expectedUserPoint);
+
+        // When
+        UserPoint result = pointService.use(userId, useAmount);
+
+        // Then
+        assertAll(
+                () -> assertNotNull(result),
+                () -> assertEquals(expectedUserPoint.point(), result.point()),
+                () -> assertEquals(expectedUserPoint.updateMillis(), result.updateMillis()),
+                () -> verify(userPointTable).selectById(userId),
+                () -> verify(userPointTable).insertOrUpdate(userId, initialPoints - useAmount),
+                () -> verify(pointHistoryTable).insert(
+                        eq(userId),
+                        eq(useAmount),
+                        eq(TransactionType.USE),
+                        anyLong()
+                )
+        );
+    }
+
+    @Test
+    @DisplayName("포인트 잔액 부족 시 예외 발생")
+    void testUse_insufficientBalance() {
+        // Given
+        long userId = 1L;
+        long initialPoints = 500L;
+        long useAmount = 1000L;
+        long currentTimeMillis = System.currentTimeMillis();
+
+        UserPoint initialUserPoint = new UserPoint(userId, initialPoints, currentTimeMillis);
+
+        when(userPointTable.selectById(userId)).thenReturn(initialUserPoint);
+
+        // When & Then
+        assertThrows(IllegalArgumentException.class, () -> pointService.use(userId, useAmount),
+                "포인트가 부족합니다.");
+
+        verify(userPointTable).selectById(userId);
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
+    }
 }
