@@ -35,11 +35,7 @@ public class PointService {
             throw new IllegalArgumentException("충전한도는 100,000 까지 입니다. 충전에 실패하였습니다.");
         }
 
-        if (userPoint.point() == 0) {
-            userPoint = userPointTable.insertOrUpdate(id, amount);
-        } else {
-            userPoint = userPointTable.insertOrUpdate(id, newBalance);
-        }
+        userPoint = userPointTable.insertOrUpdate(id, newBalance);
 
         pointHistoryTable.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
 
@@ -51,7 +47,7 @@ public class PointService {
     /**
      * 포인트 사용
      */
-    public UserPoint use(long id, long amount) {
+    public synchronized UserPoint use(long id, long amount) {
         UserPoint userPoint = userPointTable.selectById(id);
 
         if (userPoint == null) {
