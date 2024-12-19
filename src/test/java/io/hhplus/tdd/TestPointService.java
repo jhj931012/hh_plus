@@ -89,4 +89,24 @@ public class TestPointService {
         verifyNoInteractions(userPointTable);
         verifyNoInteractions(pointHistoryTable);
     }
+
+    @Test
+    @DisplayName("100,000을 초과하는 금액 충전 시 예외 발생")
+    void testCharge_amountExceedsMaxCharge() {
+        // Given
+        long userId = 3L;
+        long amountToCharge = 150000L;
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            pointService.charge(userId, amountToCharge);
+        });
+
+        assertInstanceOf(IllegalArgumentException.class, exception);
+        assertEquals("충전금액은 100,000을 넘을 수 없습니다.", exception.getMessage());
+        verify(userPointTable, never()).selectById(userId);
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
+    }
+
 }
