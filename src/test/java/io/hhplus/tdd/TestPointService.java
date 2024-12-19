@@ -164,4 +164,25 @@ public class TestPointService {
         );
     }
 
+    @Test
+    @DisplayName("포인트 잔액 부족 시 예외 발생")
+    void testUse_insufficientBalance() {
+        // Given
+        long userId = 1L;
+        long initialPoints = 500L;
+        long useAmount = 1000L;
+        long currentTimeMillis = System.currentTimeMillis();
+
+        UserPoint initialUserPoint = new UserPoint(userId, initialPoints, currentTimeMillis);
+
+        when(userPointTable.selectById(userId)).thenReturn(initialUserPoint);
+
+        // When & Then
+        assertThrows(IllegalArgumentException.class, () -> pointService.use(userId, useAmount),
+                "포인트가 부족합니다.");
+
+        verify(userPointTable).selectById(userId);
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
+    }
 }
