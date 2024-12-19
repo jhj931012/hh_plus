@@ -21,32 +21,16 @@ public class PointService {
      * 포인트 충전
      */
     public UserPoint charge(long id, long amount) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("충전금액은 양수여야 합니다.");
-        }
-        if (amount > 100000) {
-            throw new IllegalArgumentException("충전금액은 100,000을 넘을 수 없습니다.");
-        }
-
+        // 유저 포인트 조회
         UserPoint userPoint = userPointTable.selectById(id);
+        long newBalance = userPoint.point() + amount;  // 새 포인트 계산
+        userPoint = userPointTable.insertOrUpdate(id, newBalance); // 업데이트
 
-        long newBalance = userPoint.point() + amount;
-        if (newBalance > 100000) {
-            throw new IllegalArgumentException("충전한도는 100,000 까지 입니다. 충전에 실패하였습니다.");
-        }
-
-        if (userPoint.point() == 0) {
-            userPoint = userPointTable.insertOrUpdate(id, amount);
-        } else {
-            userPoint = userPointTable.insertOrUpdate(id, newBalance);
-        }
-
+        // 포인트 히스토리 저장
         pointHistoryTable.insert(id, amount, TransactionType.CHARGE, System.currentTimeMillis());
 
         return userPoint;  // 업데이트된 포인트 정보 반환
     }
-
-
 
     /**
      * 포인트 사용
