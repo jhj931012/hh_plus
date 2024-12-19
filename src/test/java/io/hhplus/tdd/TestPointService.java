@@ -45,6 +45,7 @@ import static org.mockito.Mockito.*;
    - 모든 충전과 사용내역은 history에 기록
 3. 유저마다 보유할 수 있는 잔액은 0 이상 10_000_000 이하이다.
    - 포인트 충전 시에 결과값이 10_000_000 이상일 경우, 요청은 실패한다.
+   *
 */
 @ExtendWith(MockitoExtension.class)
 public class TestPointService {
