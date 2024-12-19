@@ -22,7 +22,7 @@ public class PointService {
      */
     public UserPoint charge(long id, long amount) {
         if (amount <= 0) {
-            throw new IllegalArgumentException("충전금액은 양수여야 합니다.");
+            throw new IllegalArgumentException("충전금액은 0보다 커야 합니다.");
         }
         if (amount > 100000) {
             throw new IllegalArgumentException("충전금액은 100,000을 넘을 수 없습니다.");
@@ -54,14 +54,17 @@ public class PointService {
     public UserPoint use(long id, long amount) {
         UserPoint userPoint = userPointTable.selectById(id);
 
-        if (userPoint.point() < amount) {  // 잔액 부족 검사
+        if (userPoint == null) {
+            throw new IllegalArgumentException("유저 정보가 존재하지 않습니다.");
+        }
+
+        if (userPoint.point() < amount) {
             throw new IllegalArgumentException("포인트가 부족합니다.");
         }
 
         long newBalance = userPoint.point() - amount;
         userPoint = userPointTable.insertOrUpdate(id, newBalance);
 
-        // 포인트 히스토리 저장
         pointHistoryTable.insert(id, amount, TransactionType.USE, System.currentTimeMillis());
 
         return userPoint;  // 사용 후 업데이트된 포인트 정보 반환
