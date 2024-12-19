@@ -8,16 +8,16 @@ import io.hhplus.tdd.point.UserPoint;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /*
 * PATCH  `/point/{id}/charge` : 포인트를 충전한다.
@@ -32,12 +32,14 @@ import static org.mockito.Mockito.when;
 2. 동일한 유저에 대한 포인트 사용/충전/조회는 한번에 하나만 실행되어야 한다
    - 동일한 유저에 요청이 한번 더 들어가면 기존의 포인트 + 새로운 포인트
    - 충전 금액이 음수인 경우 요청실패
+   - 누적된 충전금액 > 100,000 일때 요청실패
+   - 충전금액 > 100,000 일때 요청 실패
    - 잔액 < 사용금액 인 경우 요청실패
    - 모든 충전과 사용내역은 history에 기록
 3. 유저마다 보유할 수 있는 잔액은 0 이상 10_000_000 이하이다.
    - 포인트 충전 시에 결과값이 10_000_000 이상일 경우, 요청은 실패한다.
 */
-
+@ExtendWith(MockitoExtension.class)
 public class TestPointService {
 
     @Mock
@@ -48,12 +50,6 @@ public class TestPointService {
 
     @InjectMocks
     private PointService pointService;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
-
 
     @Test
     @DisplayName("포인트 충전 성공케이스")
@@ -77,4 +73,20 @@ public class TestPointService {
         verify(pointHistoryTable).insert(eq(userId), eq(amountToCharge), eq(TransactionType.CHARGE), anyLong());
     }
 
+    @Test
+    @DisplayName("충전금액이 음수인 경우")
+    void testCharge_negativeAmount() {
+        // Given
+        long userId = 2L;
+        long negativeAmount = -500L;
+
+        // When & Then
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            pointService.charge(userId, negativeAmount);
+        });
+
+        assertInstanceOf(IllegalArgumentException.class, exception);
+        verifyNoInteractions(userPointTable);
+        verifyNoInteractions(pointHistoryTable);
+    }
 }
