@@ -2,6 +2,7 @@ package io.hhplus.tdd;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.PointHistory;
 import io.hhplus.tdd.point.PointService;
 import io.hhplus.tdd.point.TransactionType;
 import io.hhplus.tdd.point.UserPoint;
@@ -13,6 +14,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -223,5 +227,43 @@ public class TestPointService {
         assertEquals(nonExistentUserId, result.id());
         assertEquals(0, result.point());
         verify(userPointTable, times(1)).selectById(nonExistentUserId);
+    }
+
+    @Test
+    @DisplayName("포인트 사용/충전 내역 조회 성공 테스트")
+    void testHistory_Success() {
+        // Given
+        long userId = 1L;
+        List<PointHistory> expectedHistories = Arrays.asList(
+                new PointHistory(1L, userId, 100L, TransactionType.CHARGE, System.currentTimeMillis()),
+                new PointHistory(2L, userId, 50L, TransactionType.USE, System.currentTimeMillis())
+        );
+
+        when(pointHistoryTable.selectAllByUserId(userId)).thenReturn(expectedHistories);
+
+        // When
+        List<PointHistory> result = pointService.history(userId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(expectedHistories, result);
+        verify(pointHistoryTable, times(1)).selectAllByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("내역이 없는 사용자의 포인트 사용/충전 내역 조회 테스트")
+    void testHistory_EmptyHistory() {
+        // Given
+        long userId = 999L;
+        when(pointHistoryTable.selectAllByUserId(userId)).thenReturn(List.of());
+
+        // When
+        List<PointHistory> result = pointService.history(userId);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(pointHistoryTable, times(1)).selectAllByUserId(userId);
     }
 }
