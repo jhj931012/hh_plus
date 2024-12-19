@@ -74,7 +74,7 @@ public class TestPointService {
     }
 
     @Test
-    @DisplayName("충전금액이 음수인 경우")
+    @DisplayName("충전금액이 음수인 경우 예외발생")
     void testCharge_negativeAmount() {
         // Given
         long userId = 2L;
@@ -105,6 +105,26 @@ public class TestPointService {
         assertInstanceOf(IllegalArgumentException.class, exception);
         assertEquals("충전금액은 100,000을 넘을 수 없습니다.", exception.getMessage());
         verify(userPointTable, never()).selectById(userId);
+        verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
+        verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("충전 후 포인트가 100,000을 초과할 경우 예외 발생")
+    void testCharge_exceedingMaxPoints() {
+        // Given
+        long userId = 3L;
+        long amountToCharge = 60000L;
+        UserPoint existingUserPoint = new UserPoint(userId, 50000L, System.currentTimeMillis());
+        when(userPointTable.selectById(userId)).thenReturn(existingUserPoint);
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            pointService.charge(userId, amountToCharge);
+        });
+
+        assertInstanceOf(IllegalArgumentException.class, exception);
+        verify(userPointTable).selectById(userId);
         verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
         verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
     }
