@@ -17,6 +17,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -266,4 +269,65 @@ public class TestPointService {
         assertTrue(result.isEmpty());
         verify(pointHistoryTable, times(1)).selectAllByUserId(userId);
     }
+
+    @Test
+    @DisplayName("동시 포인트 사용 동시성 테스트")
+    void testPointUse_Concurrency() throws InterruptedException {
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        long userId = 1L;
+        long initialPoints = 10000L;
+
+        // 초기 포인트 설정
+        pointService.charge(userId, initialPoints);
+
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    pointService.use(userId, 100L);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        // 최종 포인트 검증
+        UserPoint finalUserPoint = pointService.point(userId);
+        assertEquals(initialPoints - (100L * threadCount), finalUserPoint.point());
+    }
+
+
+    @Test
+    @DisplayName("동시 포인트 충전 동시성 테스트")
+    void testPointCharge_Concurrency() throws InterruptedException {
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+
+        long userId = 1L;
+        long chargeAmount = 100L;
+
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    pointService.charge(userId, chargeAmount);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        latch.await();
+        executorService.shutdown();
+
+        // 최종 포인트 검증
+        UserPoint finalUserPoint = pointService.point(userId);
+        assertEquals(chargeAmount * threadCount, finalUserPoint.point());
+    }
+
 }
