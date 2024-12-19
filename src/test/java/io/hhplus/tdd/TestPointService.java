@@ -185,4 +185,43 @@ public class TestPointService {
         verify(userPointTable, never()).insertOrUpdate(anyLong(), anyLong());
         verify(pointHistoryTable, never()).insert(anyLong(), anyLong(), any(), anyLong());
     }
+
+    @Test
+    @DisplayName("포인트 조회 성공 테스트")
+    void testPoint_Success() {
+        // Given
+        long userId = 1L;
+        long expectedPoints = 1000L;
+        long currentTimeMillis = System.currentTimeMillis();
+        UserPoint expectedUserPoint = new UserPoint(userId, expectedPoints, currentTimeMillis);
+
+        when(userPointTable.selectById(userId)).thenReturn(expectedUserPoint);
+
+        // When
+        UserPoint result = pointService.point(userId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(userId, result.id());
+        assertEquals(expectedPoints, result.point());
+        assertEquals(currentTimeMillis, result.updateMillis());
+        verify(userPointTable, times(1)).selectById(userId);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 포인트 조회 테스트")
+    void testPoint_UserNotFound() {
+        // Given
+        long nonExistentUserId = 999L;
+        when(userPointTable.selectById(nonExistentUserId)).thenReturn(UserPoint.empty(nonExistentUserId));
+
+        // When
+        UserPoint result = pointService.point(nonExistentUserId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(nonExistentUserId, result.id());
+        assertEquals(0, result.point());
+        verify(userPointTable, times(1)).selectById(nonExistentUserId);
+    }
 }
